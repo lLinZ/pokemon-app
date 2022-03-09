@@ -1,6 +1,6 @@
 import { useEffect } from 'react';
 import { GetStaticProps, GetStaticPaths, NextPage } from 'next';
-import { useRouter } from 'next/router';
+import Router, { useRouter } from 'next/router';
 import { pokeApi } from '../../api';
 import { Layout } from '../../components/layouts';
 import { Pokemon } from '../../interfaces';
@@ -8,6 +8,7 @@ import { Grid, Card, Text, Button, Container, Image } from '@nextui-org/react';
 import { localFavorites } from '../../utils';
 import { useState } from 'react';
 import confetti from 'canvas-confetti';
+import { getPokemonInfo } from '../../utils/getPokemonInfo';
 
 interface Props {
     pokemon: Pokemon;
@@ -98,19 +99,32 @@ export const getStaticPaths: GetStaticPaths = async (ctx) => {
         paths: pokemons151.map(id => ({
             params: { id }
         })),
-        fallback: false
+        fallback: 'blocking'
     }
 }
 
 export const getStaticProps: GetStaticProps = async ({ params }) => {
-    const queryId = params as { id: string };
-    const { data } = await pokeApi.get<Pokemon>(`/pokemon/${queryId.id}`);
-    const { id, name, sprites } = data;
-    const pokemon = { id, name, sprites };
+
+    const { id } = params as { id: string };
+
+    const pokemon = await getPokemonInfo(id);
+
+    // Si no existe el pokemon solicitado
+    if (!pokemon) {
+        return {
+            redirect: {
+                destination: '/',
+                permanent: false
+            }
+        }
+    }
+
+    // Si existe el pokemon solicitado
     return {
         props: {
             pokemon
-        }
+        },
+        revalidate: 86400, // 60 * 60 * 24
     }
 }
 export default PokemonPage;
